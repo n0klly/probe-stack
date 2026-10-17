@@ -1,0 +1,47 @@
+# Стек домашнего задания № 2. Всё, что в угловых скобках, заменить
+# значениями своего варианта. Тег образа не пишется: его подставляет
+# deploy.sh через переменную VERSION.
+services:
+  web:
+    image: localhost:6010/makeev-10/probe:${VERSION}
+    environment:
+      MARKER: weblab
+      APP_PORT: "5010"
+      DATABASE_URL: mysql://root:lab@db:3306/lab
+    ports:
+      - "8030:5010"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5010/notes')"]
+      interval: 3s
+      retries: 3
+    networks: [net]
+    deploy:
+      replicas: 3
+      update_config:
+        parallelism: 1
+        delay: 5s
+        order: start-first
+        failure_action: rollback
+        monitor: 20s
+
+  db:
+    image: mariadb:11
+    environment:
+      MARIADB_ROOT_PASSWORD: lab
+      MARIADB_DATABASE: lab
+    volumes:
+      - data:/var/lib/mysql
+    networks: [net]
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 2s
+      retries: 30
+
+networks:
+  net:
+    ipam:
+      config:
+        - subnet: 10.30.0.0/24
+
+volumes:
+  data:
